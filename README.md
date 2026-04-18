@@ -1,11 +1,39 @@
 # Face-Attractiveness (FaceValue)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Top Language](https://img.shields.io/github/languages/top/hshasan2004/Face-Attractiveness)
+![Repo Size](https://img.shields.io/github/repo-size/hshasan2004/Face-Attractiveness)
+![Last Commit](https://img.shields.io/github/last-commit/hshasan2004/Face-Attractiveness)
+
 FaceValue is a full-stack research platform for collecting structured human attractiveness ratings on celebrity photos. It provides two complete experiences:
 
 - Evaluator workflow: sign up, review study rules, rate photos, take managed breaks, resume progress, and view rewards.
 - Admin workflow: manage surveys and media, monitor real-time participation, and export analytics-ready results.
 
 The application is built with React + Vite on the frontend, Supabase for auth/database/storage/realtime, and Firebase Hosting for deployment.
+
+## Screenshots
+
+Add screenshots to make the repository page more visual. Recommended location:
+
+- `docs/screenshots/`
+
+Recommended captures:
+
+- Login page
+- Rules page
+- Survey rating interface
+- Rewards page
+- Admin dashboard
+- Admin results/statistics
+
+Markdown template (replace paths once images are added):
+
+```md
+![Login](docs/screenshots/login.png)
+![Survey](docs/screenshots/survey.png)
+![Admin Dashboard](docs/screenshots/admin-dashboard.png)
+```
 
 ## Table of Contents
 
