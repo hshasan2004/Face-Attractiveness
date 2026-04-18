@@ -77,6 +77,8 @@ Markdown template (replace paths once images are added):
     </td>
   </tr>
 </table>
+
+
 ## Core Features
 
 ### Evaluator Features
