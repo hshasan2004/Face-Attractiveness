@@ -14,6 +14,17 @@ const ASPECT_RATIOS = [
   { label: '9:16', value: 9 / 16 },
 ]
 
+function normalizeUploadedBaseName(value) {
+  const raw = String(value || '').trim()
+  const leaf = (raw.split(/[/\\]/).pop() || 'image').replace(/\.[^.]+$/, '')
+  const safe = leaf.replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'image'
+  return `${safe}.jpg`
+}
+
+function defaultImageIdFromName(value) {
+  return String(value || '').trim().replace(/\.[^.]+$/, '')
+}
+
 export default function PhotoUpload() {
   const [surveys, setSurveys] = useState([])
   const [selectedSurvey, setSelectedSurvey] = useState('')
@@ -30,6 +41,8 @@ export default function PhotoUpload() {
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
   const [bucketError, setBucketError] = useState(false)
+  const [selectedFileName, setSelectedFileName] = useState('')
+  const [imageId, setImageId] = useState('')
   const fileRef = useRef()
 
   useEffect(() => { loadSurveys() }, [])
@@ -56,6 +69,8 @@ export default function PhotoUpload() {
     if (!file) return
     setUploadMsg('')
     setBucketError(false)
+    setSelectedFileName(file.name || '')
+    setImageId(defaultImageIdFromName(file.name || ''))
     const reader = new FileReader()
     reader.onload = () => { setImageSrc(reader.result); setShowCrop(true) }
     reader.readAsDataURL(file)
@@ -76,7 +91,7 @@ export default function PhotoUpload() {
     setBucketError(false)
     try {
       const blob = await getCroppedImageBlob(imageSrc, croppedArea)
-      const fileName = `${selectedCeleb}/${Date.now()}.jpg`
+      const fileName = normalizeUploadedBaseName(imageId || selectedFileName)
       const { error: storageErr } = await supabase.storage
         .from(CELEBRITY_PHOTOS_BUCKET)
         .upload(fileName, blob, { contentType: 'image/jpeg', upsert: false })
@@ -97,7 +112,7 @@ export default function PhotoUpload() {
       if (dbErr) throw dbErr
       setUploadMsg('Photo uploaded successfully!')
       setBucketError(false)
-      setShowCrop(false); setImageSrc(null)
+      setShowCrop(false); setImageSrc(null); setSelectedFileName(''); setImageId('')
       loadCelebrities()
     } catch (err) {
       const msg = err?.message || String(err)
@@ -193,7 +208,20 @@ export default function PhotoUpload() {
         <div className="card" style={{ marginBottom: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: '1rem' }}>Crop Photo</h3>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setShowCrop(false); setImageSrc(null); setUploadMsg(''); setBucketError(false) }}>Cancel</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setShowCrop(false); setImageSrc(null); setUploadMsg(''); setBucketError(false); setImageId('') }}>Cancel</button>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: '12px' }}>
+            <label className="form-label">Image ID</label>
+            <input
+              className="form-input"
+              value={imageId}
+              onChange={e => setImageId(e.target.value)}
+              placeholder="e.g. p1_img1"
+            />
+            <div style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: '6px' }}>
+              Stored filename: {normalizeUploadedBaseName(imageId || selectedFileName)}
+            </div>
           </div>
 
           {/* Aspect ratio buttons */}

@@ -12,6 +12,17 @@ const ASPECT_RATIOS = [
   { label: '4:5', value: 4 / 5 },
 ]
 
+function normalizeUploadedBaseName(value) {
+  const raw = String(value || '').trim()
+  const leaf = (raw.split(/[/\\]/).pop() || 'image').replace(/\.[^.]+$/, '')
+  const safe = leaf.replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'image'
+  return `${safe}.jpg`
+}
+
+function defaultImageIdFromName(value) {
+  return String(value || '').trim().replace(/\.[^.]+$/, '')
+}
+
 function storagePathToUrl(path) {
   if (!path) return ''
   try {
@@ -46,6 +57,8 @@ export default function Celebrities() {
   const [croppedArea, setCroppedArea] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
+  const [selectedFileName, setSelectedFileName] = useState('')
+  const [imageId, setImageId] = useState('')
   const [brokenImages, setBrokenImages] = useState(new Set())
   const fileRef = useRef()
 
@@ -123,6 +136,8 @@ export default function Celebrities() {
     if (!file) return
     setEditingCelebrityId(celebId)
     setUploadMsg('')
+    setSelectedFileName(file.name || '')
+    setImageId(defaultImageIdFromName(file.name || ''))
     const reader = new FileReader()
     reader.onload = () => { setImageSrc(reader.result); setShowPhotoModal(true) }
     reader.readAsDataURL(file)
@@ -136,7 +151,7 @@ export default function Celebrities() {
     setUploadMsg('')
     try {
       const blob = await getCroppedImageBlob(imageSrc, croppedArea)
-      const fileName = `${editingCelebrityId}/${Date.now()}.jpg`
+      const fileName = normalizeUploadedBaseName(imageId || selectedFileName)
       const { error: storageErr } = await supabase.storage
         .from(CELEBRITY_PHOTOS_BUCKET)
         .upload(fileName, blob, { contentType: 'image/jpeg', upsert: false })
@@ -151,6 +166,8 @@ export default function Celebrities() {
       setUploadMsg('Photo uploaded successfully!')
       setShowPhotoModal(false)
       setImageSrc(null)
+      setSelectedFileName('')
+      setImageId('')
       setEditingCelebrityId(null)
       loadCelebrities()
     } catch (err) {
@@ -340,14 +357,28 @@ export default function Celebrities() {
           if (e.target !== e.currentTarget) return
           setShowPhotoModal(false)
           setImageSrc(null)
+          setImageId('')
           setEditingCelebrityId(null)
         }}>
           <div className="modal">
             <div className="modal-header">
               <span className="modal-title">Crop Photo</span>
-              <button type="button" className="modal-close" onClick={() => { setShowPhotoModal(false); setImageSrc(null); setEditingCelebrityId(null) }}>✕</button>
+              <button type="button" className="modal-close" onClick={() => { setShowPhotoModal(false); setImageSrc(null); setImageId(''); setEditingCelebrityId(null) }}>✕</button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Image ID</label>
+                <input
+                  className="form-input"
+                  value={imageId}
+                  onChange={e => setImageId(e.target.value)}
+                  placeholder="e.g. p1_img1"
+                />
+                <div style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: '6px' }}>
+                  Stored filename: {normalizeUploadedBaseName(imageId || selectedFileName)}
+                </div>
+              </div>
+
               {/* Aspect ratio buttons */}
               <div className="crop-controls" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {ASPECT_RATIOS.map(r => (
@@ -393,7 +424,7 @@ export default function Celebrities() {
               )}
 
               <div className="modal-footer">
-                <button type="button" className="btn btn-ghost" onClick={() => { setShowPhotoModal(false); setImageSrc(null); setEditingCelebrityId(null) }}>Cancel</button>
+                <button type="button" className="btn btn-ghost" onClick={() => { setShowPhotoModal(false); setImageSrc(null); setImageId(''); setEditingCelebrityId(null) }}>Cancel</button>
                 <button type="button" className="btn btn-gold" disabled={uploading || !croppedArea} onClick={handleUploadPhoto}>
                   {uploading ? <><span className="spinner" /> Uploading...</> : 'Apply Crop & Upload'}
                 </button>

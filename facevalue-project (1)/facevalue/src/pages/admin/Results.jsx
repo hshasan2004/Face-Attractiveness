@@ -432,22 +432,115 @@ export default function Results() {
     }
   }
 
-  function downloadCSV() {
-    const headers = ['celebrity_name', 'gender', 'avg_rating', 'male_avg', 'female_avg', 'evaluations']
-    const rows = filtered.map(r => [
-      r.name,
-      r.gender || 'unknown',
-      r.avg || '0',
-      r.maleAvg || '0',
-      r.femaleAvg || '0',
-      r.count || 0
-    ])
-    const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
+  async function downloadCSV() {
+    if (!selectedSurveyId) return
+
+    const { data: celebs, error: celebsError } = await supabase
+      .from('celebrities')
+      .select('id')
+      .eq('survey_id', selectedSurveyId)
+
+    if (celebsError || !celebs?.length) return
+
+    const { data: photos, error: photosError } = await supabase
+      .from('celebrity_photos')
+      .select('id, storage_path, display_order, celebrity_id')
+      .in('celebrity_id', celebs.map(c => c.id))
+      .order('celebrity_id', { ascending: true })
+      .order('display_order', { ascending: true })
+
+    if (photosError || !photos?.length) return
+
+    const photoIdSet = new Set(photos.map(photo => photo.id))
+    let ratingRows = []
+    let participantUserIds = []
+
+    const { data: assignments, error: assignmentsError } = await supabase
+      .from('survey_assignments')
+      .select('id, user_id, created_at')
+      .eq('survey_id', selectedSurveyId)
+      .order('created_at', { ascending: true })
+
+    if (!assignmentsError && assignments?.length) {
+      participantUserIds = [...new Set(assignments.map(assignment => assignment.user_id).filter(Boolean))]
+      const assignmentUserById = Object.fromEntries(assignments.map(assignment => [assignment.id, assignment.user_id]))
+      const assignmentIds = assignments.map(assignment => assignment.id)
+
+      const { data: ratingsData, error: ratingsError } = await supabase
+        .from('ratings')
+        .select('assignment_id, photo_id, rating')
+        .in('assignment_id', assignmentIds)
+
+      if (!ratingsError && ratingsData?.length) {
+        ratingRows = ratingsData
+          .filter(row => photoIdSet.has(row.photo_id))
+          .map(row => ({
+            user_id: assignmentUserById[row.assignment_id],
+            photo_id: row.photo_id,
+            rating: Number(row.rating)
+          }))
+          .filter(row => row.user_id && Number.isFinite(row.rating))
+      }
+    }
+
+    // Fallback for projects storing survey ratings in responses.
+    if (!ratingRows.length) {
+      const { data: responsesData, error: responsesError } = await supabase
+        .from('responses')
+        .select('user_id, photo_id, rating')
+        .eq('survey_id', selectedSurveyId)
+
+      if (!responsesError && responsesData?.length) {
+        ratingRows = responsesData
+          .filter(row => photoIdSet.has(row.photo_id))
+          .map(row => ({
+            user_id: row.user_id,
+            photo_id: row.photo_id,
+            rating: Number(row.rating)
+          }))
+          .filter(row => row.user_id && Number.isFinite(row.rating))
+      }
+    }
+
+    const ratingUserIds = [...new Set(ratingRows.map(row => row.user_id).filter(Boolean))]
+    const userIds = participantUserIds.length
+      ? [...new Set([...participantUserIds, ...ratingUserIds])]
+      : ratingUserIds
+
+    if (!userIds.length) return
+
+    const userColumnById = Object.fromEntries(userIds.map((userId, index) => [userId, `User${index + 1} Rating`]))
+    const headers = ['Images', ...userIds.map(userId => userColumnById[userId]), 'Average']
+
+    const ratingByPhotoAndUser = {}
+    ratingRows.forEach(row => {
+      const key = `${row.photo_id}::${row.user_id}`
+      ratingByPhotoAndUser[key] = row.rating
+    })
+
+    const rows = photos.map(photo => {
+      const rawFileName = String(photo.storage_path || '').split('/').pop() || ''
+      const fileName = rawFileName || 'image.jpg'
+      const userRatings = userIds.map(userId => {
+        const key = `${photo.id}::${userId}`
+        return ratingByPhotoAndUser[key] ?? ''
+      })
+
+      const validRatings = userRatings.filter(value => Number.isFinite(Number(value))).map(Number)
+      const avg = validRatings.length ? (validRatings.reduce((sum, value) => sum + value, 0) / validRatings.length) : ''
+      const avgFormatted = avg === '' ? '' : Number(avg.toFixed(9)).toString()
+
+      return [fileName, ...userRatings, avgFormatted]
+    })
+
+    const escapeCsv = value => `"${String(value ?? '').replace(/"/g, '""')}"`
+    const csv = [headers, ...rows].map(row => row.map(escapeCsv).join(',')).join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `facevalue-results-${new Date().toISOString().split('T')[0]}.csv`
+    a.download = `facevalue-image-user-ratings-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }

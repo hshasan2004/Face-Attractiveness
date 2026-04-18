@@ -42,6 +42,17 @@ function asDataUrl(file) {
   })
 }
 
+function normalizeUploadedBaseName(value) {
+  const raw = String(value || '').trim()
+  const leaf = (raw.split(/[/\\]/).pop() || 'image').replace(/\.[^.]+$/, '')
+  const safe = leaf.replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'image'
+  return `${safe}.jpg`
+}
+
+function defaultImageIdFromName(value) {
+  return String(value || '').trim().replace(/\.[^.]+$/, '')
+}
+
 function toInputDateTime(value) {
   if (!value) return ''
   const d = new Date(value)
@@ -131,6 +142,8 @@ export default function CreateSurvey() {
   const [dragOver, setDragOver] = useState(false)
   const [showCrop, setShowCrop] = useState(false)
   const [imageSrc, setImageSrc] = useState('')
+  const [uploadFileName, setUploadFileName] = useState('')
+  const [imageId, setImageId] = useState('')
   const [replacePhoto, setReplacePhoto] = useState(null)
   const [replaceTargetPhoto, setReplaceTargetPhoto] = useState(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
@@ -1182,12 +1195,14 @@ export default function CreateSurvey() {
     }
   }
 
-  async function openCropFromFile(file, replacingPhoto = null) {
+  async function openCropFromFile(file, replacingPhoto = null, preferredName = '') {
     if (!file) return
 
     try {
       const src = await asDataUrl(file)
       setImageSrc(src)
+      setUploadFileName(preferredName || file.name || '')
+      setImageId(defaultImageIdFromName(preferredName || file.name || ''))
       setReplacePhoto(replacingPhoto)
       setZoom(1)
       setCrop({ x: 0, y: 0 })
@@ -1221,7 +1236,8 @@ export default function CreateSurvey() {
       const response = await fetch(photo.url)
       const blob = await response.blob()
       const file = new File([blob], 'replace.jpg', { type: blob.type || 'image/jpeg' })
-      await openCropFromFile(file, photo)
+      const existingName = String(photo.storage_path || '').split('/').pop() || 'image.jpg'
+      await openCropFromFile(file, photo, existingName)
     } catch {
       setError('Could not load image for re-crop/replace.')
     }
@@ -1253,7 +1269,7 @@ export default function CreateSurvey() {
       }
 
       const blob = await getCroppedImageBlob(imageSrc, croppedArea)
-      const path = `${celebId}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+      const path = normalizeUploadedBaseName(imageId || uploadFileName)
       const uploadedUrl = storagePathToUrl(path)
 
       const { error: storageErr } = await supabase.storage
@@ -1315,6 +1331,8 @@ export default function CreateSurvey() {
       await loadPhotosForCelebrity(celebId)
       setShowCrop(false)
       setImageSrc('')
+      setUploadFileName('')
+      setImageId('')
       setReplacePhoto(null)
       setSuccess(replacePhoto ? 'Image updated.' : 'Image uploaded.')
     } catch (e) {
@@ -1945,6 +1963,19 @@ export default function CreateSurvey() {
 
           {showCrop && imageSrc && (
             <div style={{ marginTop: '14px' }}>
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label className="form-label">Image ID</label>
+                <input
+                  className="form-input"
+                  value={imageId}
+                  onChange={e => setImageId(e.target.value)}
+                  placeholder="e.g. p1_img1"
+                />
+                <div style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: '6px' }}>
+                  Stored filename: {normalizeUploadedBaseName(imageId || uploadFileName)}
+                </div>
+              </div>
+
               <div className="crop-controls" style={{ marginBottom: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {ASPECT_RATIOS.map(r => (
                   <button
@@ -1987,6 +2018,7 @@ export default function CreateSurvey() {
                   onClick={() => {
                     setShowCrop(false)
                     setImageSrc('')
+                    setImageId('')
                     setReplacePhoto(null)
                   }}
                 >
