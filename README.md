@@ -52,6 +52,31 @@ Markdown template (replace paths once images are added):
 13. [Troubleshooting](#troubleshooting)
 14. [License](#license)
 
+
+## 👥 Devs
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/hshasan2004">
+        <img src="https://github.com/hshasan2004.png" width="100px" height="100px" style="object-fit:cover;" alt="Hasan"/>
+        <br/>
+        <b>Mohammad Hasan</b>
+      </a>
+      <br/>
+      <small>Full Stack Developer</small>
+    </td>
+    <td align="center">
+      <a href="https://github.com/if-i-shajan">
+        <img src="https://github.com/if-i-shajan.png" width="100px" height="100px" style="object-fit:cover;" alt="Shajan"/>
+        <br/>
+        <b>J.M. Ifthakharul Islam Shajan</b>
+      </a>
+      <br/>
+      <small>Full Stack Developer</small>
+    </td>
+  </tr>
+</table>
 ## Core Features
 
 ### Evaluator Features
