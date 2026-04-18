@@ -1,0 +1,10 @@
+{
+  "name": "aiproject-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix \"facevalue-project (1)/facevalue\" run dev",
+    "build": "npm --prefix \"facevalue-project (1)/facevalue\" run build",
+    "preview": "npm --prefix \"facevalue-project (1)/facevalue\" run preview",
+    "deploy": "npm --prefix \"facevalue-project (1)/facevalue\" run deploy"
+  }
+}
